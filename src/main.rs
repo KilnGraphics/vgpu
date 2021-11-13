@@ -32,10 +32,10 @@ async fn process(json_str: &str, http: &Http) {
         TEST_CHANNEL_ID.send_message(http, |m|
             m.embed(|e| e.colour(EMBED_COLOR)
                 .author(|a| a.name(event.sender.login).icon_url(event.sender.avatar_url))
-                .title(format!("[Compare changes]({})", event.compare))
                 .description(event.commits.iter().map(|c| format!("[`{}`]({}) {} - {}\n", &c.id[0..7], c.url, c.message, c.author.username)).collect::<String>())
-                .field(":paperclip:Test Results (When Completed)", format!("https://hydos.cf/tests/{}", short_hash), true)
-                .field("Tests Status", ":white_check_mark: Some Test Name Here \n:x: Some Other Test Name Here\n**2/2** Tests Completed.", true)
+                .field("Compare changes", format!("[here]({})", event.compare), true)
+                .field("Test Results", format!("https://hydos.cf/tests/{}", short_hash), true)
+                .field("Tests Status", ":white_check_mark: Some Test Name Here \n:x: Some Other Test Name Here\n**2/2** Tests Completed.", false)
             )).await.unwrap();
     }
 }
@@ -43,6 +43,10 @@ async fn process(json_str: &str, http: &Http) {
 #[tokio::main]
 async fn main() {
     let (tx, mut rx) = tokio::sync::mpsc::channel::<String>(8);
+
+    // Dump a push event json there when you need to test formatting
+    // tx.send(include_str!("test.json").to_string()).await.unwrap();
+
     tokio::spawn(webhook::start(tx));
 
     let token = include_str!("token");
