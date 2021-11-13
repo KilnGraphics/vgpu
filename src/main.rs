@@ -62,7 +62,8 @@ async fn start_bot() {
 
 #[tokio::main]
 async fn main() {
-    webhook::start();
+    tokio::spawn(webhook::start());
+
 
     let bot = start_bot();
     bot.await

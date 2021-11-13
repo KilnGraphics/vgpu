@@ -1,12 +1,11 @@
 extern crate hyper;
 
-use std::error::Error;
+use std::convert::Infallible;
 use std::net::SocketAddr;
 
-use hyper::rt::{run, Future, Stream};
 use hyper::{Body, Request, Response, Server};
 use hyper::server::conn::AddrStream;
-use hyper::service::{make_service_fn, service_fn_ok};
+use hyper::service::{make_service_fn, service_fn};
 
 /// Handler of the deliveries
 
@@ -84,19 +83,26 @@ use hyper::service::{make_service_fn, service_fn_ok};
 // }
 
 /// Start the server from given config file path
-pub fn start() -> Result<(), Box<dyn Error>> {
+pub async fn start() {
     println!("Setting up...");
 
     // Prepare secret
     let secret = "cope";
 
-    let make_svc = make_service_fn(|socket: &AddrStream| {
-        service_fn_ok(move |request: Request<Body>| {
-            for x in request.headers().iter() {
-                println!("{} = {}", x.0, x.1.to_str().expect("Failed to stringify"))
-            };
-            Response::new(Body::empty())
-        })
+    let make_svc = make_service_fn(|_: &AddrStream| {
+        async move {
+            Ok::<_, Infallible>(service_fn(move |request: Request<Body>| async move {
+                println!("Headers");
+                for x in request.headers().iter() {
+                    println!("{} = {}", x.0, x.1.to_str().expect("Failed to stringify"))
+                };
+
+                let payload = hyper::body::to_bytes(request.into_body()).await.unwrap();
+                println!("Body: {}", String::from_utf8(payload.to_vec()).unwrap());
+
+                Ok::<_, Infallible>(Response::new(Body::empty()))
+            }))
+        }
     });
 
     // Setup server
@@ -112,10 +118,10 @@ pub fn start() -> Result<(), Box<dyn Error>> {
     );
 
     let server = Server::bind(&addr)
-        .serve(make_svc)
-        .map_err(|e| panic!("Error: {:?}", e));
-    println!("Started");
+        .serve(make_svc);
 
-    run(server);
-    Ok(())
+    if let Err(err) = server.await {
+        eprintln!("server error: {}", err);
+    }
+    println!("Started");
 }
