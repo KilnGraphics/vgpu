@@ -5,7 +5,7 @@ pub struct PushEvent<'a> {
     pub after: &'a str,
     pub sender: Sender<'a>,
     pub compare: &'a str,
-    pub head_commit: HeadCommit<'a>,
+    pub commits: Vec<Commit<'a>>,
 }
 
 #[derive(Deserialize)]
@@ -15,6 +15,14 @@ pub struct Sender<'a> {
 }
 
 #[derive(Deserialize)]
-pub struct HeadCommit<'a> {
+pub struct Commit<'a> {
+    pub id: &'a str,
     pub message: &'a str,
+    pub url: &'a str,
+    pub author: Author<'a>,
+}
+
+#[derive(Deserialize)]
+pub struct Author<'a> {
+    pub username: &'a str,
 }
