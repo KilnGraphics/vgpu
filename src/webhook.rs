@@ -6,6 +6,7 @@ use std::net::SocketAddr;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
 use tokio::sync::mpsc::Sender;
+use self::hyper::header;
 
 /// Start the server from given config file path
 pub async fn start(sender: Sender<String>) {
@@ -23,7 +24,11 @@ pub async fn start(sender: Sender<String>) {
                 }
             }
 
-            Ok::<_, Infallible>(Response::new(Body::empty()))
+            Ok::<_, Infallible>(Response::builder()
+                .status(301)
+                .header(header::LOCATION, "https://hydos.cf/404.html")
+                .body(Body::empty())
+                .unwrap())
         }
     });
 
