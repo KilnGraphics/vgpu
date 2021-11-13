@@ -1,3 +1,5 @@
+mod webhook;
+
 use std::env;
 use serenity::{async_trait, model::gateway::Ready, prelude::*};
 use serenity::framework::StandardFramework;
@@ -9,7 +11,7 @@ struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     async fn ready(&self, ctx: Context, _data_about_bot: Ready) {
-        ctx.set_activity(Activity::playing("Rosella")).await;
+        ctx.set_activity(Activity::playing("with Rosella")).await;
         let kiln_guild = GuildId(860320568318099496);
 
         let channels = kiln_guild.channels(&ctx).await.unwrap();
@@ -60,6 +62,8 @@ async fn start_bot() {
 
 #[tokio::main]
 async fn main() {
+    webhook::start();
+
     let bot = start_bot();
     bot.await
 }
