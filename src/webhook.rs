@@ -2,26 +2,22 @@ extern crate hyper;
 
 use std::convert::Infallible;
 use std::net::SocketAddr;
-use std::sync::{Arc, Mutex, RwLock};
 
-use hyper::{Body, Request, Response, Server};
-use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Request, Response, Server};
+use tokio::sync::mpsc::Sender;
 
 /// Start the server from given config file path
-pub async fn start(cope: Arc<RwLock<Option<Box<dyn Fn(String)>>>>) {
+pub async fn start(sender: Sender<String>) {
     println!("Setting up...");
 
-    let make_svc = make_service_fn(|_: &AddrStream| {
-        async move {
-            Ok::<_, Infallible>(service_fn(move |request: Request<Body>| async move {
-                let payload = hyper::body::to_bytes(request.into_body()).await.unwrap();
-                let json = String::from_utf8(payload.to_vec()).unwrap();
-
-                (cope.lock().unwrap().unwrap())(json);
-                Ok::<_, Infallible>(Response::new(Body::empty()))
-            }))
-        }
+    let make_svc = make_service_fn(|_| async move {
+        Ok::<_, Infallible>(service_fn(move |request: Request<Body>| async move {
+            let payload = hyper::body::to_bytes(request.into_body()).await.unwrap();
+            let json = String::from_utf8(payload.to_vec()).unwrap();
+            // sender.send(json).await.unwrap();
+            Ok::<_, Infallible>(Response::new(Body::empty()))
+        }))
     });
 
     // Setup server
@@ -36,11 +32,11 @@ pub async fn start(cope: Arc<RwLock<Option<Box<dyn Fn(String)>>>>) {
         &addr.port()
     );
 
-    let server = Server::bind(&addr)
-        .serve(make_svc);
+    let server = Server::bind(&addr).serve(make_svc);
 
     if let Err(err) = server.await {
         eprintln!("server error: {}", err);
     }
+
     println!("Started");
 }
