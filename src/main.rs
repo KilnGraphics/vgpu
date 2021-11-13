@@ -21,10 +21,8 @@ impl EventHandler for Handler {
     }
 }
 
-async fn process(json_str: &str, http: &Http) {
-    println!("Received payload {:?}", json_str);
-
-    if let Ok(event) = serde_json::from_str::<PushEvent>(json_str) {
+async fn process(payload: &str, http: &Http) {
+    if let Ok(event) = serde_json::from_str::<PushEvent>(payload) {
         let commit_hash = event.after;
         let short_hash = &commit_hash[0..7];
 
@@ -56,7 +54,7 @@ async fn main() {
         .await
         .expect("Error creating the Discord bot");
 
-    while let Some(string) = rx.recv().await {
-        process(&string, &client.cache_and_http.http).await;
+    while let Some(payload) = rx.recv().await {
+        process(&payload, &client.cache_and_http.http).await;
     }
 }

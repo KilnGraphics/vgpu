@@ -13,12 +13,12 @@ pub async fn start(sender: Sender<String>) {
         let sender = sender.clone();
 
         async move {
-            if let Ok(payload) = hyper::body::to_bytes(request.into_body()).await {
-                if let Ok(json) = String::from_utf8(payload.to_vec()) {
+            if let Ok(body) = hyper::body::to_bytes(request.into_body()).await {
+                if let Ok(payload) = String::from_utf8(body.to_vec()) {
                     // We don't really care if the backing receiver did not handle a message
                     #[allow(unused_must_use)]
                     {
-                        sender.send(json).await;
+                        sender.send(payload).await;
                     }
                 }
             }
