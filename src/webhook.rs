@@ -11,13 +11,21 @@ use tokio::sync::mpsc::Sender;
 pub async fn start(sender: Sender<String>) {
     println!("Setting up...");
 
-    let make_svc = make_service_fn(|_| async move {
-        Ok::<_, Infallible>(service_fn(move |request: Request<Body>| async move {
-            let payload = hyper::body::to_bytes(request.into_body()).await.unwrap();
-            let json = String::from_utf8(payload.to_vec()).unwrap();
-            // sender.send(json).await.unwrap();
-            Ok::<_, Infallible>(Response::new(Body::empty()))
-        }))
+    let make_svc = make_service_fn(|_| {
+        let sender = sender.clone();
+
+        async move {
+            Ok::<_, Infallible>(service_fn(move |request: Request<Body>| {
+                let sender = sender.clone();
+
+                async move {
+                    let payload = hyper::body::to_bytes(request.into_body()).await.unwrap();
+                    let json = String::from_utf8(payload.to_vec()).unwrap();
+                    sender.send(json).await.unwrap();
+                    Ok::<_, Infallible>(Response::new(Body::empty()))
+                }
+            }))
+        }
     });
 
     // Setup server
