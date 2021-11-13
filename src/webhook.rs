@@ -2,6 +2,7 @@ extern crate hyper;
 
 use std::convert::Infallible;
 use std::net::SocketAddr;
+use std::sync::{Arc, Mutex, RwLock};
 
 use hyper::{Body, Request, Response, Server};
 use hyper::server::conn::AddrStream;
@@ -83,23 +84,16 @@ use hyper::service::{make_service_fn, service_fn};
 // }
 
 /// Start the server from given config file path
-pub async fn start() {
+pub async fn start(cope: Arc<RwLock<Option<Box<dyn Fn(String)>>>>) {
     println!("Setting up...");
-
-    // Prepare secret
-    let secret = "cope";
 
     let make_svc = make_service_fn(|_: &AddrStream| {
         async move {
             Ok::<_, Infallible>(service_fn(move |request: Request<Body>| async move {
-                println!("Headers");
-                for x in request.headers().iter() {
-                    println!("{} = {}", x.0, x.1.to_str().expect("Failed to stringify"))
-                };
-
                 let payload = hyper::body::to_bytes(request.into_body()).await.unwrap();
-                println!("Body: {}", String::from_utf8(payload.to_vec()).unwrap());
+                let json = String::from_utf8(payload.to_vec()).unwrap();
 
+                (cope.lock().unwrap().unwrap())(json);
                 Ok::<_, Infallible>(Response::new(Body::empty()))
             }))
         }
