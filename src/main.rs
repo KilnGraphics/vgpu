@@ -4,6 +4,9 @@ use serenity::model::gateway::Activity;
 use serenity::model::id::ChannelId;
 use serenity::{async_trait, model::gateway::Ready, prelude::*};
 
+use crate::github::PushEvent;
+
+mod github;
 mod webhook;
 
 struct Handler;
@@ -19,37 +22,22 @@ impl EventHandler for Handler {
 }
 
 async fn process(json_str: &str, http: &Http) {
-    let json: serde_json::Value = serde_json::from_str(json_str).unwrap();
+    if let Ok(event) = serde_json::from_str::<PushEvent>(json_str) {
+        let commit_hash = event.after;
+        let short_hash = &commit_hash[0..7];
 
-    let commit_hash = json.get("after").unwrap().as_str().unwrap();
-    let short_hash = &commit_hash[0..7];
-
-    let commiter_pfp = json
-        .get("sender")
-        .unwrap()
-        .get("avatar_url")
-        .unwrap()
-        .as_str()
-        .unwrap();
-
-    TEST_CHANNEL_ID.send_message(http, |m| {
-        m.embed(|e| {
-            e.colour(EMBED_COLOR);
-            e.title(format!("Testing Commit {}", short_hash));
-            e.description("You're free to ignore this embed.");
-            e.image(commiter_pfp);
-            e.fields(vec![
-                (":paperclip:Test Results (When Completed)", format!("https://hydos.cf/tests/{}", short_hash).as_str(), true),
-                ("Tests Status", ":white_check_mark: Some Test Name Here \n:x: Some Other Test Name Here\n**2/2** Tests Completed.", false),
-            ]);
-            e.footer(|f| {
-                f.text("Kiln Graphics v-gpu (Vulkan CI Testing)");
-                f
-            });
-            e
-        });
-        m
-    }).await.unwrap();
+        // Unwrapping here is fine if we got this far
+        TEST_CHANNEL_ID.send_message(http, |m|
+            m.embed(|e| e.colour(EMBED_COLOR)
+                .title(format!("{}\n\nTesting on commit {}", event.head_commit.message, commit_hash))
+                .description(format!("[Compare changes]({})", event.compare))
+                .fields(vec![
+                    (":paperclip:Test Results (When Completed)", format!("https://hydos.cf/tests/{}", short_hash).as_str(), false),
+                    ("Tests Status", ":white_check_mark: Some Test Name Here \n:x: Some Other Test Name Here\n**2/2** Tests Completed.", false),
+                ])
+                .footer(|f| f.text(event.sender.login).icon_url(event.sender.avatar_url)))
+        ).await.unwrap();
+    }
 }
 
 #[tokio::main]
@@ -62,7 +50,7 @@ async fn main() {
         .event_handler(Handler)
         .framework(StandardFramework::new())
         .await
-        .expect("Error Creating the Discord Bot");
+        .expect("Error creating the Discord bot");
 
     while let Some(string) = rx.recv().await {
         process(&string, &client.cache_and_http.http).await;
